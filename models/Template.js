@@ -10,6 +10,11 @@ const pointSchema = new mongoose.Schema(
 
 const templateSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
+  categoryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+    default: null,
+  },
   bgImage: { type: String, required: true },
   isPremium: { type: Boolean, default: false },
   coverCoords: {

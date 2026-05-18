@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import Template from '../models/Template.js';
+import Category from '../models/Category.js';
 import { saveTemplateFile, deleteTemplateFile } from '../utils/fileStorage.js';
 
 const isValidPoint = (point) =>
@@ -48,6 +50,21 @@ const parseSpineOffsetY = (value, fallback = 0) => {
   return Math.max(-160, Math.min(160, Math.round(num)));
 };
 
+const parseCategoryId = async (value) => {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return null;
+  }
+  const raw = String(value).trim();
+  if (!mongoose.Types.ObjectId.isValid(raw)) {
+    throw new Error('Некорректный идентификатор категории');
+  }
+  const category = await Category.findById(raw);
+  if (!category) {
+    throw new Error('Категория не найдена');
+  }
+  return category._id;
+};
+
 const parseCoordsField = (value, fieldName) => {
   if (typeof value === 'string') {
     try {
@@ -61,18 +78,31 @@ const parseCoordsField = (value, fieldName) => {
 
 const toPublicTemplate = (doc) => {
   const item = doc.toObject ? doc.toObject() : doc;
+  const category =
+    item.categoryId && typeof item.categoryId === 'object'
+      ? {
+          _id: item.categoryId._id,
+          name: item.categoryId.name,
+          slug: item.categoryId.slug,
+        }
+      : item.categoryId || null;
   return {
     ...item,
+    categoryId: category?._id ?? item.categoryId ?? null,
+    category,
     bgImageUrl: item.bgImage,
   };
 };
 
 export const getTemplates = async (_req, res) => {
   try {
-    const templates = await Template.find().sort({ createdAt: -1 }).lean();
+    const templates = await Template.find()
+      .populate('categoryId', 'name slug parentId sortOrder')
+      .sort({ createdAt: -1 })
+      .lean();
     return res.status(200).json({
       success: true,
-      data: templates.map((t) => ({ ...t, bgImageUrl: t.bgImage })),
+      data: templates.map((t) => toPublicTemplate(t)),
     });
   } catch (error) {
     return res.status(500).json({
@@ -85,13 +115,15 @@ export const getTemplates = async (_req, res) => {
 
 export const getTemplateById = async (req, res) => {
   try {
-    const template = await Template.findById(req.params.id).lean();
+    const template = await Template.findById(req.params.id)
+      .populate('categoryId', 'name slug parentId sortOrder')
+      .lean();
     if (!template) {
       return res.status(404).json({ success: false, message: 'Шаблон не найден' });
     }
     return res.status(200).json({
       success: true,
-      data: { ...template, bgImageUrl: template.bgImage },
+      data: toPublicTemplate(template),
     });
   } catch (error) {
     return res.status(500).json({
@@ -116,6 +148,7 @@ export const createTemplate = async (req, res) => {
     const spineColor = parseSpineColor(req.body.spineColor);
     const spineColorAuto = parseSpineColorAuto(req.body.spineColorAuto);
     const spineOffsetY = parseSpineOffsetY(req.body.spineOffsetY);
+    const categoryId = await parseCategoryId(req.body.categoryId);
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Укажите название шаблона' });
@@ -139,6 +172,7 @@ export const createTemplate = async (req, res) => {
 
     const template = await Template.create({
       title: title.trim(),
+      categoryId,
       bgImage: savedPath,
       isPremium: isPremium === true || isPremium === 'true',
       coverCoords: coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
@@ -152,15 +186,19 @@ export const createTemplate = async (req, res) => {
       spineOffsetY,
     });
 
-    return res.status(201).json({ success: true, data: toPublicTemplate(template) });
+    const populated = await Template.findById(template._id).populate(
+      'categoryId',
+      'name slug parentId sortOrder'
+    );
+    return res.status(201).json({ success: true, data: toPublicTemplate(populated) });
   } catch (error) {
     if (savedPath) {
       await deleteTemplateFile(savedPath);
     }
-    return res.status(500).json({
+    const status = error.message?.includes('категор') ? 400 : 500;
+    return res.status(status).json({
       success: false,
-      message: 'Не удалось создать шаблон',
-      error: error.message,
+      message: error.message || 'Не удалось создать шаблон',
     });
   }
 };
@@ -201,6 +239,10 @@ export const updateTemplate = async (req, res) => {
     const spineColorAuto = parseSpineColorAuto(
       req.body.spineColorAuto ?? existing.spineColorAuto
     );
+    const categoryId =
+      req.body.categoryId !== undefined
+        ? await parseCategoryId(req.body.categoryId)
+        : existing.categoryId;
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Укажите название шаблона' });
@@ -218,6 +260,7 @@ export const updateTemplate = async (req, res) => {
 
     const updates = {
       title: title.trim(),
+      categoryId,
       isPremium: isPremium === true || isPremium === 'true',
       coverCoords: coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
       spineCoords: spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
@@ -239,7 +282,7 @@ export const updateTemplate = async (req, res) => {
     const template = await Template.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
-    });
+    }).populate('categoryId', 'name slug parentId sortOrder');
 
     if (oldBgImage) {
       await deleteTemplateFile(oldBgImage);
@@ -250,10 +293,10 @@ export const updateTemplate = async (req, res) => {
     if (savedPath) {
       await deleteTemplateFile(savedPath);
     }
-    return res.status(500).json({
+    const status = error.message?.includes('категор') ? 400 : 500;
+    return res.status(status).json({
       success: false,
-      message: 'Не удалось обновить шаблон',
-      error: error.message,
+      message: error.message || 'Не удалось обновить шаблон',
     });
   }
 };
