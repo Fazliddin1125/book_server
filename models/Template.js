@@ -44,6 +44,12 @@ const templateSchema = new mongoose.Schema({
     enum: ['slice', 'solid'],
     default: 'solid',
   },
+  /** 3d = spine mesh; 2d = flat front cover only with hinge shadows */
+  layoutMode: {
+    type: String,
+    enum: ['3d', '2d'],
+    default: '3d',
+  },
   spineColor: { type: String, default: '#334155', trim: true },
   /** solid mode: take color from user-uploaded cover edge instead of spineColor */
   spineColorAuto: { type: Boolean, default: false },

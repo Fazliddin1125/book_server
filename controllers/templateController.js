@@ -34,6 +34,8 @@ const parseSpineCurvature = (value, fallback = 0) => parseSpineBow(value, fallba
 
 const parseSpineMode = (value) => (value === 'slice' ? 'slice' : 'solid');
 
+const parseLayoutMode = (value) => (value === '2d' ? '2d' : '3d');
+
 const parseSpineColor = (value) => {
   const raw = String(value || '#334155').trim();
   return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw.toLowerCase() : '#334155';
@@ -145,6 +147,7 @@ export const createTemplate = async (req, res) => {
     const spineBowTop = parseSpineBow(req.body.spineBowTop);
     const spineBowBottom = parseSpineBow(req.body.spineBowBottom);
     const spineMode = parseSpineMode(req.body.spineMode);
+    const layoutMode = parseLayoutMode(req.body.layoutMode);
     const spineColor = parseSpineColor(req.body.spineColor);
     const spineColorAuto = parseSpineColorAuto(req.body.spineColorAuto);
     const spineOffsetY = parseSpineOffsetY(req.body.spineOffsetY);
@@ -163,9 +166,11 @@ export const createTemplate = async (req, res) => {
       return res.status(400).json({ success: false, message: coverError });
     }
 
-    const spineError = validateQuad(spineCoords, 'spineCoords');
-    if (spineError) {
-      return res.status(400).json({ success: false, message: spineError });
+    if (layoutMode !== '2d') {
+      const spineError = validateQuad(spineCoords, 'spineCoords');
+      if (spineError) {
+        return res.status(400).json({ success: false, message: spineError });
+      }
     }
 
     savedPath = await saveTemplateFile(req.file.buffer, req.file.originalname, req.file.mimetype);
@@ -176,11 +181,15 @@ export const createTemplate = async (req, res) => {
       bgImage: savedPath,
       isPremium: isPremium === true || isPremium === 'true',
       coverCoords: coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
-      spineCoords: spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
+      spineCoords:
+        layoutMode === '2d'
+          ? coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) }))
+          : spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
       spineCurvature,
       spineBowTop,
       spineBowBottom,
       spineMode,
+      layoutMode,
       spineColor,
       spineColorAuto,
       spineOffsetY,
@@ -235,6 +244,7 @@ export const updateTemplate = async (req, res) => {
       existing.spineOffsetY ?? 0
     );
     const spineMode = parseSpineMode(req.body.spineMode ?? existing.spineMode);
+    const layoutMode = parseLayoutMode(req.body.layoutMode ?? existing.layoutMode);
     const spineColor = parseSpineColor(req.body.spineColor ?? existing.spineColor);
     const spineColorAuto = parseSpineColorAuto(
       req.body.spineColorAuto ?? existing.spineColorAuto
@@ -253,9 +263,11 @@ export const updateTemplate = async (req, res) => {
       return res.status(400).json({ success: false, message: coverError });
     }
 
-    const spineError = validateQuad(spineCoords, 'spineCoords');
-    if (spineError) {
-      return res.status(400).json({ success: false, message: spineError });
+    if (layoutMode !== '2d') {
+      const spineError = validateQuad(spineCoords, 'spineCoords');
+      if (spineError) {
+        return res.status(400).json({ success: false, message: spineError });
+      }
     }
 
     const updates = {
@@ -263,12 +275,16 @@ export const updateTemplate = async (req, res) => {
       categoryId,
       isPremium: isPremium === true || isPremium === 'true',
       coverCoords: coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
-      spineCoords: spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
+      spineCoords:
+        layoutMode === '2d'
+          ? coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) }))
+          : spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
       spineCurvature,
       spineBowTop,
       spineBowBottom,
       spineOffsetY,
       spineMode,
+      layoutMode,
       spineColor,
       spineColorAuto,
     };
