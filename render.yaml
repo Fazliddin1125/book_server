@@ -19,6 +19,8 @@ services:
         generateValue: true
       - key: UPLOADS_PATH
         value: /var/data/uploads/templates
+      - key: CORS_ORIGINS
+        value: https://bookmockup-seven.vercel.app,http://localhost:5173
     disk:
       name: book-uploads
       mountPath: /var/data/uploads
