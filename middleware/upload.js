@@ -7,7 +7,7 @@ const fileFilter = (_req, file, cb) => {
     cb(null, true);
     return;
   }
-  cb(new Error('Faqat rasm fayllari ruxsat etilgan'));
+  cb(new Error('Разрешены только файлы изображений'));
 };
 
 export const uploadTemplateImage = multer({

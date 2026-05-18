@@ -9,11 +9,11 @@ const isValidPoint = (point) =>
 
 const validateQuad = (coords, fieldName) => {
   if (!Array.isArray(coords) || coords.length !== 4) {
-    return `${fieldName} must be an array of exactly 4 {x, y} points`;
+    return `${fieldName}: требуется ровно 4 точки {x, y}`;
   }
   for (let i = 0; i < coords.length; i += 1) {
     if (!isValidPoint(coords[i])) {
-      return `${fieldName}[${i}] must include numeric x and y values`;
+      return `${fieldName}[${i}]: координаты x и y должны быть числами`;
     }
   }
   return null;
@@ -24,7 +24,7 @@ const parseCoordsField = (value, fieldName) => {
     try {
       return JSON.parse(value);
     } catch {
-      throw new Error(`${fieldName} JSON formati noto'g'ri`);
+      throw new Error(`Неверный формат JSON для ${fieldName}`);
     }
   }
   return value;
@@ -48,7 +48,7 @@ export const getTemplates = async (_req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Failed to fetch templates',
+      message: 'Не удалось загрузить список шаблонов',
       error: error.message,
     });
   }
@@ -58,7 +58,7 @@ export const getTemplateById = async (req, res) => {
   try {
     const template = await Template.findById(req.params.id).lean();
     if (!template) {
-      return res.status(404).json({ success: false, message: 'Template not found' });
+      return res.status(404).json({ success: false, message: 'Шаблон не найден' });
     }
     return res.status(200).json({
       success: true,
@@ -67,7 +67,7 @@ export const getTemplateById = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Failed to fetch template',
+      message: 'Не удалось загрузить шаблон',
       error: error.message,
     });
   }
@@ -82,11 +82,11 @@ export const createTemplate = async (req, res) => {
     const spineCoords = parseCoordsField(req.body.spineCoords, 'spineCoords');
 
     if (!title || typeof title !== 'string' || !title.trim()) {
-      return res.status(400).json({ success: false, message: 'title is required' });
+      return res.status(400).json({ success: false, message: 'Укажите название шаблона' });
     }
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'templateImage fayli talab qilinadi' });
+      return res.status(400).json({ success: false, message: 'Требуется файл изображения шаблона' });
     }
 
     const coverError = validateQuad(coverCoords, 'coverCoords');
@@ -116,7 +116,7 @@ export const createTemplate = async (req, res) => {
     }
     return res.status(500).json({
       success: false,
-      message: 'Failed to create template',
+      message: 'Не удалось создать шаблон',
       error: error.message,
     });
   }
@@ -131,7 +131,7 @@ export const updateTemplate = async (req, res) => {
     const existing = await Template.findById(id);
 
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Template not found' });
+      return res.status(404).json({ success: false, message: 'Шаблон не найден' });
     }
 
     const { title, isPremium } = req.body;
@@ -139,7 +139,7 @@ export const updateTemplate = async (req, res) => {
     const spineCoords = parseCoordsField(req.body.spineCoords, 'spineCoords');
 
     if (!title || typeof title !== 'string' || !title.trim()) {
-      return res.status(400).json({ success: false, message: 'title is required' });
+      return res.status(400).json({ success: false, message: 'Укажите название шаблона' });
     }
 
     const coverError = validateQuad(coverCoords, 'coverCoords');
@@ -181,7 +181,7 @@ export const updateTemplate = async (req, res) => {
     }
     return res.status(500).json({
       success: false,
-      message: 'Failed to update template',
+      message: 'Не удалось обновить шаблон',
       error: error.message,
     });
   }
@@ -193,16 +193,16 @@ export const deleteTemplate = async (req, res) => {
     const deleted = await Template.findByIdAndDelete(id);
 
     if (!deleted) {
-      return res.status(400).json({ success: false, message: 'Template not found' });
+      return res.status(400).json({ success: false, message: 'Шаблон не найден' });
     }
 
     await deleteTemplateFile(deleted.bgImage);
 
-    return res.status(200).json({ success: true, message: 'Template deleted', data: deleted });
+    return res.status(200).json({ success: true, message: 'Шаблон удалён', data: deleted });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Failed to delete template',
+      message: 'Не удалось удалить шаблон',
       error: error.message,
     });
   }

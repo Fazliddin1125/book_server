@@ -17,7 +17,7 @@ const templateSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: (coords) => Array.isArray(coords) && coords.length === 4,
-      message: 'coverCoords must contain exactly 4 coordinate points',
+      message: 'coverCoords должны содержать ровно 4 точки координат',
     },
   },
   spineCoords: {
@@ -25,7 +25,7 @@ const templateSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: (coords) => Array.isArray(coords) && coords.length === 4,
-      message: 'spineCoords must contain exactly 4 coordinate points',
+      message: 'spineCoords должны содержать ровно 4 точки координат',
     },
   },
   createdAt: { type: Date, default: Date.now },

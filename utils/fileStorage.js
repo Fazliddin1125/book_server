@@ -17,7 +17,7 @@ if (!fs.existsSync(UPLOADS_DIR)) {
 
 const getBucket = () => {
   if (mongoose.connection.readyState !== 1) {
-    throw new Error('MongoDB ulanmagan — fayl saqlab bo\'lmaydi');
+    throw new Error('MongoDB не подключена — невозможно сохранить файл');
   }
   return new GridFSBucket(mongoose.connection.db, { bucketName: BUCKET_NAME });
 };
@@ -82,7 +82,7 @@ export const streamTemplateFile = async (filename, res) => {
       const stream = bucket.openDownloadStreamByName(safeName);
       stream.on('error', () => {
         if (!res.headersSent) {
-          res.status(404).json({ success: false, message: 'Rasm topilmadi' });
+          res.status(404).json({ success: false, message: 'Изображение не найдено' });
         }
       });
       stream.pipe(res);
@@ -96,5 +96,5 @@ export const streamTemplateFile = async (filename, res) => {
     return;
   }
 
-  res.status(404).json({ success: false, message: 'Rasm topilmadi' });
+  res.status(404).json({ success: false, message: 'Изображение не найдено' });
 };

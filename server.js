@@ -54,7 +54,7 @@ app.use('/api/templates', templateRoutes);
 app.get('/', (_req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Book Mockup API',
+    message: 'API генератора 3D макетов книг',
     health: '/api/health',
     templates: '/api/templates',
   });
@@ -63,7 +63,7 @@ app.get('/', (_req, res) => {
 app.get('/api/health', (_req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Book Mockup API is running',
+    message: 'API генератора 3D макетов книг работает',
     mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     storage: 'GridFS + disk cache',
   });
