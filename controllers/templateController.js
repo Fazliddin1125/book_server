@@ -19,6 +19,35 @@ const validateQuad = (coords, fieldName) => {
   return null;
 };
 
+const parseSpineBow = (value, fallback = 0) => {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return fallback;
+  }
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(-240, Math.min(240, Math.round(num)));
+};
+
+const parseSpineCurvature = (value, fallback = 0) => parseSpineBow(value, fallback);
+
+const parseSpineMode = (value) => (value === 'slice' ? 'slice' : 'solid');
+
+const parseSpineColor = (value) => {
+  const raw = String(value || '#334155').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw.toLowerCase() : '#334155';
+};
+
+const parseSpineColorAuto = (value) => value === true || value === 'true';
+
+const parseSpineOffsetY = (value, fallback = 0) => {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return fallback;
+  }
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(-160, Math.min(160, Math.round(num)));
+};
+
 const parseCoordsField = (value, fieldName) => {
   if (typeof value === 'string') {
     try {
@@ -80,6 +109,13 @@ export const createTemplate = async (req, res) => {
     const { title, isPremium } = req.body;
     const coverCoords = parseCoordsField(req.body.coverCoords, 'coverCoords');
     const spineCoords = parseCoordsField(req.body.spineCoords, 'spineCoords');
+    const spineCurvature = parseSpineCurvature(req.body.spineCurvature);
+    const spineBowTop = parseSpineBow(req.body.spineBowTop);
+    const spineBowBottom = parseSpineBow(req.body.spineBowBottom);
+    const spineMode = parseSpineMode(req.body.spineMode);
+    const spineColor = parseSpineColor(req.body.spineColor);
+    const spineColorAuto = parseSpineColorAuto(req.body.spineColorAuto);
+    const spineOffsetY = parseSpineOffsetY(req.body.spineOffsetY);
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Укажите название шаблона' });
@@ -107,6 +143,13 @@ export const createTemplate = async (req, res) => {
       isPremium: isPremium === true || isPremium === 'true',
       coverCoords: coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
       spineCoords: spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
+      spineCurvature,
+      spineBowTop,
+      spineBowBottom,
+      spineMode,
+      spineColor,
+      spineColorAuto,
+      spineOffsetY,
     });
 
     return res.status(201).json({ success: true, data: toPublicTemplate(template) });
@@ -137,6 +180,27 @@ export const updateTemplate = async (req, res) => {
     const { title, isPremium } = req.body;
     const coverCoords = parseCoordsField(req.body.coverCoords, 'coverCoords');
     const spineCoords = parseCoordsField(req.body.spineCoords, 'spineCoords');
+    const spineCurvature = parseSpineCurvature(
+      req.body.spineCurvature,
+      existing.spineCurvature ?? 0
+    );
+    const spineBowTop = parseSpineBow(
+      req.body.spineBowTop,
+      existing.spineBowTop ?? 0
+    );
+    const spineBowBottom = parseSpineBow(
+      req.body.spineBowBottom,
+      existing.spineBowBottom ?? existing.spineCurvature ?? 0
+    );
+    const spineOffsetY = parseSpineOffsetY(
+      req.body.spineOffsetY,
+      existing.spineOffsetY ?? 0
+    );
+    const spineMode = parseSpineMode(req.body.spineMode ?? existing.spineMode);
+    const spineColor = parseSpineColor(req.body.spineColor ?? existing.spineColor);
+    const spineColorAuto = parseSpineColorAuto(
+      req.body.spineColorAuto ?? existing.spineColorAuto
+    );
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return res.status(400).json({ success: false, message: 'Укажите название шаблона' });
@@ -157,6 +221,13 @@ export const updateTemplate = async (req, res) => {
       isPremium: isPremium === true || isPremium === 'true',
       coverCoords: coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
       spineCoords: spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
+      spineCurvature,
+      spineBowTop,
+      spineBowBottom,
+      spineOffsetY,
+      spineMode,
+      spineColor,
+      spineColorAuto,
     };
 
     if (req.file) {
