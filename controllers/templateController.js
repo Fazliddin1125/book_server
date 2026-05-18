@@ -1,10 +1,5 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import Template from '../models/Template.js';
-import { UPLOADS_DIR } from '../middleware/upload.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { saveTemplateFile, deleteTemplateFile } from '../utils/fileStorage.js';
 
 const isValidPoint = (point) =>
   point &&
@@ -43,19 +38,6 @@ const toPublicTemplate = (doc) => {
   };
 };
 
-const deleteFileIfExists = async (relativePath) => {
-  if (!relativePath || !relativePath.startsWith('/uploads/')) return;
-
-  const absolutePath = path.join(__dirname, '..', relativePath);
-  try {
-    await fs.unlink(absolutePath);
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      console.warn('Fayl o\'chirilmadi:', absolutePath, error.message);
-    }
-  }
-};
-
 export const getTemplates = async (_req, res) => {
   try {
     const templates = await Template.find().sort({ createdAt: -1 }).lean();
@@ -92,7 +74,7 @@ export const getTemplateById = async (req, res) => {
 };
 
 export const createTemplate = async (req, res) => {
-  let uploadedFilename = null;
+  let savedPath = null;
 
   try {
     const { title, isPremium } = req.body;
@@ -107,8 +89,6 @@ export const createTemplate = async (req, res) => {
       return res.status(400).json({ success: false, message: 'templateImage fayli talab qilinadi' });
     }
 
-    uploadedFilename = req.file.filename;
-
     const coverError = validateQuad(coverCoords, 'coverCoords');
     if (coverError) {
       return res.status(400).json({ success: false, message: coverError });
@@ -119,11 +99,11 @@ export const createTemplate = async (req, res) => {
       return res.status(400).json({ success: false, message: spineError });
     }
 
-    const bgImage = `/uploads/templates/${uploadedFilename}`;
+    savedPath = await saveTemplateFile(req.file.buffer, req.file.originalname, req.file.mimetype);
 
     const template = await Template.create({
       title: title.trim(),
-      bgImage,
+      bgImage: savedPath,
       isPremium: isPremium === true || isPremium === 'true',
       coverCoords: coverCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
       spineCoords: spineCoords.map((p) => ({ x: Number(p.x), y: Number(p.y) })),
@@ -131,8 +111,8 @@ export const createTemplate = async (req, res) => {
 
     return res.status(201).json({ success: true, data: toPublicTemplate(template) });
   } catch (error) {
-    if (uploadedFilename) {
-      await deleteFileIfExists(`/uploads/templates/${uploadedFilename}`);
+    if (savedPath) {
+      await deleteTemplateFile(savedPath);
     }
     return res.status(500).json({
       success: false,
@@ -143,7 +123,7 @@ export const createTemplate = async (req, res) => {
 };
 
 export const updateTemplate = async (req, res) => {
-  let uploadedFilename = null;
+  let savedPath = null;
   let oldBgImage = null;
 
   try {
@@ -180,9 +160,9 @@ export const updateTemplate = async (req, res) => {
     };
 
     if (req.file) {
-      uploadedFilename = req.file.filename;
+      savedPath = await saveTemplateFile(req.file.buffer, req.file.originalname, req.file.mimetype);
       oldBgImage = existing.bgImage;
-      updates.bgImage = `/uploads/templates/${uploadedFilename}`;
+      updates.bgImage = savedPath;
     }
 
     const template = await Template.findByIdAndUpdate(id, updates, {
@@ -190,14 +170,14 @@ export const updateTemplate = async (req, res) => {
       runValidators: true,
     });
 
-    if (oldBgImage && oldBgImage.startsWith('/uploads/')) {
-      await deleteFileIfExists(oldBgImage);
+    if (oldBgImage) {
+      await deleteTemplateFile(oldBgImage);
     }
 
     return res.status(200).json({ success: true, data: toPublicTemplate(template) });
   } catch (error) {
-    if (uploadedFilename) {
-      await deleteFileIfExists(`/uploads/templates/${uploadedFilename}`);
+    if (savedPath) {
+      await deleteTemplateFile(savedPath);
     }
     return res.status(500).json({
       success: false,
@@ -216,7 +196,7 @@ export const deleteTemplate = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Template not found' });
     }
 
-    await deleteFileIfExists(deleted.bgImage);
+    await deleteTemplateFile(deleted.bgImage);
 
     return res.status(200).json({ success: true, message: 'Template deleted', data: deleted });
   } catch (error) {
